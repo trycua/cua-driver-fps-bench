@@ -3504,6 +3504,35 @@ impl Tool for TypeTextTool {
 
 // ── press_key ─────────────────────────────────────────────────────────────────
 
+/// Upper bound for `press_key`'s `hold_ms` (milliseconds the key stays down).
+const PRESS_KEY_MAX_HOLD_MS: u64 = 5000;
+
+/// Parse and validate the optional `hold_ms` argument (0..=5000, default 0).
+fn press_key_hold_ms(args: &Value) -> Result<u64, ToolResult> {
+    let Some(value) = args.get("hold_ms") else {
+        return Ok(0);
+    };
+    if value.is_null() {
+        return Ok(0);
+    }
+    match value.as_u64() {
+        Some(ms) if ms <= PRESS_KEY_MAX_HOLD_MS => Ok(ms),
+        _ => Err(ToolResult::error(format!(
+            "hold_ms must be an integer in 0..={PRESS_KEY_MAX_HOLD_MS} (got {value})."
+        ))),
+    }
+}
+
+/// Result-text suffix describing a non-zero hold.
+fn hold_suffix(hold_ms: u64) -> String {
+    if hold_ms == 0 {
+        String::new()
+    } else {
+        format!(", held {hold_ms} ms")
+    }
+}
+
+
 pub struct PressKeyTool {
     state: Arc<ToolState>,
 }
@@ -3559,7 +3588,7 @@ impl Tool for PressKeyTool {
     fn def(&self) -> &ToolDef {
         PRESS_DEF.get_or_init(|| ToolDef {
             name: "press_key".into(),
-            description: "Press a key via XSendEvent to a window. No focus steal.".into(),
+            description: "Press and release a single key via XSendEvent to a window (no focus steal); hold_ms keeps it down for that long — games/apps that need held movement keys.".into(),
             input_schema: json!({
                 "type":"object","required":["key"],"properties":{
                     "session": cua_driver_core::tool_schema::session_schema(),
@@ -3567,6 +3596,7 @@ impl Tool for PressKeyTool {
                     "window_id":{"type":"integer"},
                     "key":{"type":"string"},
                     "modifiers":{"type":"array","items":{"type":"string"}},
+                    "hold_ms":{"type":"integer","minimum":0,"maximum":5000,"default":0,"description":"Keep the key held down for this many milliseconds between press and release (0 = plain tap). X11 paths only; ignored on Wayland."},
                     "element_index": cua_driver_core::tool_schema::element_index_schema(),
                     "element_token": cua_driver_core::tool_schema::element_token_schema(),
                     "snapshot_id": cua_driver_core::tool_schema::snapshot_id_schema(),
@@ -3582,6 +3612,10 @@ impl Tool for PressKeyTool {
 
     async fn invoke(&self, args: Value) -> ToolResult {
         use cua_driver_core::tool_args::ArgsExt;
+        let hold_ms = match press_key_hold_ms(&args) {
+            Ok(v) => v,
+            Err(e) => return e,
+        };
         if args.opt_str("scope").as_deref() == Some("desktop") && args.get("pid").is_none() {
             let input = match parse_typed_projection::<PressKeyInput>("press_key", &args) {
                 Ok(input) => input,
@@ -3603,15 +3637,18 @@ impl Tool for PressKeyTool {
                     crate::wayland::hotkey_focused(&keys)
                 } else {
                     let refs: Vec<&str> = modifiers.iter().map(String::as_str).collect();
-                    crate::input::send_key_xtest(&key, &refs)
+                    crate::input::send_key_xtest_held(&key, &refs, hold_ms)
                 }
             })
             .await;
             return match result {
-                Ok(Ok(())) => ToolResult::text(format!("Pressed desktop key '{display}'."))
-                    .with_structured(
-                        json!({"scope":"desktop","path":path,"effect":"unverifiable"}),
-                    ),
+                Ok(Ok(())) => ToolResult::text(format!(
+                    "Pressed desktop key '{display}'{}.",
+                    hold_suffix(hold_ms)
+                ))
+                .with_structured(json!({
+                    "scope":"desktop","path":path,"effect":"unverifiable","hold_ms":hold_ms
+                })),
                 Ok(Err(error)) => ToolResult::error(error.to_string()),
                 Err(error) => ToolResult::error(format!("Task error: {error}")),
             };
@@ -3828,6 +3865,7 @@ impl Tool for PressKeyTool {
         let result = tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
             if resolved_element_index.is_none()
                 && mods.is_empty()
+                && hold_ms == 0
                 && key_for_task.eq_ignore_ascii_case("enter")
             {
                 if inject_terminal_input(pid, xid, "\n")? {
@@ -3849,7 +3887,7 @@ impl Tool for PressKeyTool {
                             );
                         }
                     }
-                    crate::input::send_key_xtest(&key_for_task, &m)
+                    crate::input::send_key_xtest_held(&key_for_task, &m, hold_ms)
                 });
             }
             if let Some(element_index) = resolved_element_index {
@@ -3860,9 +3898,9 @@ impl Tool for PressKeyTool {
                 }
             }
             if let Some((x, y)) = px_target {
-                crate::input::send_key_at(xid, x, y, &key_for_task, &m)
+                crate::input::send_key_at_held(xid, x, y, &key_for_task, &m, hold_ms)
             } else {
-                crate::input::send_key(xid, &key_for_task, &m)
+                crate::input::send_key_held(xid, &key_for_task, &m, hold_ms)
             }
         })
         .await;
@@ -3872,10 +3910,13 @@ impl Tool for PressKeyTool {
             "background"
         };
         match result {
-            Ok(Ok(())) => {
-                ToolResult::text(format!("Pressed key '{key}' (delivery_mode={mode_label})."))
-                    .with_structured(json!({ "verified": false, "delivery_mode": mode_label }))
-            }
+            Ok(Ok(())) => ToolResult::text(format!(
+                "Pressed key '{key}' (delivery_mode={mode_label}){}.",
+                hold_suffix(hold_ms)
+            ))
+            .with_structured(json!({
+                "verified": false, "delivery_mode": mode_label, "hold_ms": hold_ms
+            })),
             Ok(Err(e)) => ToolResult::error(e.to_string()),
             Err(e) => ToolResult::error(format!("Task error: {e}")),
         }

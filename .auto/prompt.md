@@ -38,6 +38,9 @@ Useful diagnostics inside the sandbox (DISPLAY=:1):
   only where the Linux press_key path needs it.
 - `cua-driver/rust/crates/cua-driver/src/**` — CLI/tool plumbing for press_key
   (e.g. resolving a window target when none is given).
+- Note: Linux `press_key` now accepts optional `hold_ms` (0..=5000, default 0):
+  the key stays down that long between KeyPress and KeyRelease on the XTest and
+  XSendEvent paths (`send_key_xtest_held` / `send_key_held` / `send_key_at_held`).
 
 ## Off Limits
 - `bench/`, `fps_bench/`, `tasks/` — the benchmark and the agent are the fixed yardstick.

@@ -2220,6 +2220,14 @@ pub fn send_type_text_xtest(text: &str) -> Result<()> {
 /// that lack a keysym borrow a spare keycode (xdotool-style) via
 /// [`keycode_for_keysym`]; the returned guards restore the map on drop.
 pub fn send_key_xtest(key: &str, modifiers: &[&str]) -> Result<()> {
+    send_key_xtest_held(key, modifiers, 0)
+}
+
+/// [`send_key_xtest`] with a hold: the main key stays down for `hold_ms`
+/// milliseconds (at least `KEY_DELAY_MS`) between its KeyPress and KeyRelease.
+/// Modifiers are held around it exactly as in the plain tap. Games and apps
+/// that read held movement keys need this; a tap only registers one step.
+pub fn send_key_xtest_held(key: &str, modifiers: &[&str], hold_ms: u64) -> Result<()> {
     use x11rb::protocol::xtest::ConnectionExt as _;
     let (conn, _) = connect_x11_for_input()?;
     let mapping = conn.get_keyboard_mapping(8, 248)?.reply()?;
@@ -2279,7 +2287,11 @@ pub fn send_key_xtest(key: &str, modifiers: &[&str]) -> Result<()> {
         conn.xtest_fake_input(KEY_PRESS_EVENT, sk, 0, x11rb::NONE, 0, 0, 0)?;
     }
     conn.xtest_fake_input(KEY_PRESS_EVENT, keycode, 0, x11rb::NONE, 0, 0, 0)?;
-    sleep(Duration::from_millis(KEY_DELAY_MS));
+    // Flush so the press reaches the server BEFORE the hold elapses — the
+    // requests are only buffered until then, and a buffered press followed by
+    // a release would collapse the hold into an instant tap.
+    conn.flush()?;
+    sleep(Duration::from_millis(KEY_DELAY_MS.max(hold_ms)));
     conn.xtest_fake_input(KEY_RELEASE_EVENT, keycode, 0, x11rb::NONE, 0, 0, 0)?;
     if let Some(sk) = auto_shift_kc {
         conn.xtest_fake_input(KEY_RELEASE_EVENT, sk, 0, x11rb::NONE, 0, 0, 0)?;
@@ -2500,7 +2512,13 @@ pub fn send_drag_xtest_desktop(
 
 /// Send a named key press to a window.
 pub fn send_key(xid: u64, key: &str, modifiers: &[&str]) -> Result<()> {
-    send_key_to_target(xid, None, key, modifiers)
+    send_key_to_target(xid, None, key, modifiers, 0)
+}
+
+/// [`send_key`] with the key held down for `hold_ms` milliseconds (at least
+/// `KEY_DELAY_MS`) between KeyPress and KeyRelease.
+pub fn send_key_held(xid: u64, key: &str, modifiers: &[&str], hold_ms: u64) -> Result<()> {
+    send_key_to_target(xid, None, key, modifiers, hold_ms)
 }
 
 /// Send a named key to the deepest child at window-local coordinates without
@@ -2508,7 +2526,19 @@ pub fn send_key(xid: u64, key: &str, modifiers: &[&str]) -> Result<()> {
 /// Chromium renderers receive the event on their input surface rather than on
 /// the native top-level wrapper.
 pub fn send_key_at(xid: u64, x: i32, y: i32, key: &str, modifiers: &[&str]) -> Result<()> {
-    send_key_to_target(xid, Some((x, y)), key, modifiers)
+    send_key_to_target(xid, Some((x, y)), key, modifiers, 0)
+}
+
+/// [`send_key_at`] with the key held down for `hold_ms` milliseconds.
+pub fn send_key_at_held(
+    xid: u64,
+    x: i32,
+    y: i32,
+    key: &str,
+    modifiers: &[&str],
+    hold_ms: u64,
+) -> Result<()> {
+    send_key_to_target(xid, Some((x, y)), key, modifiers, hold_ms)
 }
 
 fn send_key_to_target(
@@ -2516,6 +2546,7 @@ fn send_key_to_target(
     point: Option<(i32, i32)>,
     key: &str,
     modifiers: &[&str],
+    hold_ms: u64,
 ) -> Result<()> {
     let (conn, _) = connect_x11_for_input()?;
     let target = point
@@ -2581,7 +2612,10 @@ fn send_key_to_target(
     }
     let state = KeyButMask::from(state_bits);
     send_key_event(KEY_PRESS_EVENT, keycode, state, EventMask::KEY_PRESS)?;
-    sleep(Duration::from_millis(KEY_DELAY_MS));
+    // Flush so the press is delivered before the hold elapses (see the XTest
+    // path): a buffered press + release would collapse into an instant tap.
+    conn.flush()?;
+    sleep(Duration::from_millis(KEY_DELAY_MS.max(hold_ms)));
     send_key_event(KEY_RELEASE_EVENT, keycode, state, EventMask::KEY_RELEASE)?;
     for &(modifier_keycode, modifier_mask) in modifier_keycodes.iter().rev() {
         send_key_event(
