@@ -42,6 +42,24 @@ Diff: [`results/videos/exp4-click-xtest.diff`](../../results/videos/exp4-click-x
 branch `autoresearch/fps-c-20260829-6039fb8e` · found by a pi-autoresearch session in 5
 experiments (log in `.auto/log.jsonl` on that branch).
 
+## Update 2026-08-30: held-key game
+
+The game no longer moves on taps (movement only while a key is held, 6 u/s), and the
+Linux `press_key` gained `hold_ms`. Same sandbox, cua-driver built from this repo's
+vendored source:
+
+| | `main` (hold_ms, no Exp 4) | `main` + Exp 4 |
+|---|---|---|
+| video | [`held-keys-main-score0.0.mp4`](../../results/videos/held-keys-main-score0.0.mp4) | [`held-keys-exp4-score1.0.mp4`](../../results/videos/held-keys-exp4-score1.0.mp4) |
+| score | **0.00** (0/2) | **1.00** (3/3) |
+| walking | 3 held presses to the corner (progress 0.39) | 9 held presses per episode |
+| mouse_ratio | 0.014 (57 moves, no turn) | 0.319 (18 moves) |
+| episode time | max_actions | ~42 s |
+
+Side by side (left `main`, right + Exp 4):
+[`held-keys-side-by-side.mp4`](../../results/videos/held-keys-side-by-side.mp4);
+tap-step era: [`mouse-look-side-by-side.mp4`](../../results/videos/mouse-look-side-by-side.mp4).
+
 ## Reproduce
 
 ```bash
