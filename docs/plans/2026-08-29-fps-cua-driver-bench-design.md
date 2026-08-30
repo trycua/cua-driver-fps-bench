@@ -121,17 +121,20 @@ custom Claude loop above (which stays as an alternative in `fps_bench/autoresear
 
 ## Fleet findings (2026-08-29, from the fleet-debug subagent)
 
-* **gVisor container pools are admitted but unusable today**: the pool operator
-  builds the pod with `resources: {}` (BestEffort), and the host recycles
-  BestEffort runsc sandboxes ~80 s after start → CrashLoopBackOff. Fix belongs in
-  `cloud/osgym/pool-operator/pod_backend.py` (map `cpuCores`/`memory` to
-  requests/limits). Until then `image/Dockerfile` (the pre-cloned image, pushed to
-  `cua-gymdriver-dev`) cannot be scheduled through Fleet.
-* **KubeVirt VM pools were unschedulable during the session** ("0/28 nodes
-  available: Insufficient memory/cpu"; autoscaler did not add nodes in 25 min),
-  which is also why pi-cua's `create fps-a` timed out. The VM path
-  (`fleet.ensure_vm_pool` + `ensure_bootstrapped`) is the one to use once
-  capacity returns.
+* **gVisor container pools** were unusable at first: the pool operator built pods
+  with `resources: {}` (BestEffort → runsc recycled ~80 s after start) and never
+  created the per-service k8s Services the gateway routes through. Both fixed in
+  trycua/cloud: #7268 (pod resources) and #7269 (Services), merged and rolled out
+  2026-08-29. A third, image-side bug hid behind them: the base image's
+  `supervisord.conf` has no `[include]`, so the boot-time prebuild never ran
+  (fixed in image tag `cua-driver-bench-20260830b-*`, which also runs a
+  `cua-driver serve` daemon; the build takes ~60 s on a gVisor sandbox).
+* **KubeVirt VM pools were unschedulable** ("0/28 nodes available: Insufficient
+  memory/cpu"; autoscaler capped) — fixed by doubling the Karpenter NodePool limits
+  (trycua/cloud#7267); 31 workers were up within 10 min of the merge.
+* **Fleet `reconcile_pool` recreates the pool namespace**, killing every sandbox
+  already in that pool (only the newest survives). Worked around with one pool per
+  pi-cua sandbox (`scripts/pi_sandbox.py pool_for`); not fixed upstream.
 * Diagnosis recipe: `scripts/fleet_probe.py` (gateway k8s proxy: pods, pod logs,
   VMIs, osgymsandboxes) and `scripts/fleet_status.py <pool>`.
 

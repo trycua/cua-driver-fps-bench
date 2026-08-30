@@ -7,6 +7,7 @@ acts only through `cua-driver call …`, and a pi-autoresearch loop patches the
 vendored cua-driver source on parallel CUA Fleet sandboxes to raise the score.
 
 Brief: `docs/BRIEF.md`. Design: `docs/plans/2026-08-29-fps-cua-driver-bench-design.md`.
+Results: `docs/results/2026-08-29-mouse-look-baseline-vs-exp4.md` (videos of score 0.0 → 0.8).
 
 ## Setup
 
