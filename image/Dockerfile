@@ -36,11 +36,16 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --no-modify-path \
 
 RUN git clone --filter=blob:none --sparse https://github.com/trycua/cua.git /opt/cua \
     && cd /opt/cua && git sparse-checkout set libs/cua-driver \
-    && git checkout --detach "${CUA_REF}" \
-    && cd "${CUA_DRIVER_SRC}/rust" && cargo fetch
+    && git checkout --detach "${CUA_REF}"
 
-COPY prebuild.sh /opt/fps-bench/prebuild.sh
-COPY supervisor-prebuild.conf /etc/supervisor/conf.d/zz-cua-driver-prebuild.conf
+# Overlay this repo's vendored cua-driver source (the tree the autoresearch loop
+# patches, e.g. press_key hold_ms) on top of the upstream clone, then pre-fetch crates.
+# Build context is the repo root (see image/build.sh).
+COPY cua-driver/rust "${CUA_DRIVER_SRC}/rust"
+RUN cd "${CUA_DRIVER_SRC}/rust" && rm -rf target && cargo fetch
+
+COPY image/prebuild.sh /opt/fps-bench/prebuild.sh
+COPY image/supervisor-prebuild.conf /etc/supervisor/conf.d/zz-cua-driver-prebuild.conf
 # The base image's supervisord.conf has NO [include] section, so conf.d/ is never
 # read (verified 2026-08-30: the prebuild program never spawned). Register the
 # program in supervisord.conf itself, and add a control socket so

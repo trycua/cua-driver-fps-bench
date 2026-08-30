@@ -19,9 +19,9 @@ PLATFORM=${PLATFORM:-linux/amd64}
 if [[ "$PUSH" == "1" ]]; then
   IMAGE="$REGISTRY/$REPO:$TAG"
   aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin "$REGISTRY"
-  docker buildx build --platform "$PLATFORM" --build-arg "CUA_REF=$CUA_REF" -t "$IMAGE" --push .
+  docker buildx build --platform "$PLATFORM" --build-arg "CUA_REF=$CUA_REF" -t "$IMAGE" -f Dockerfile --push ..
 else
   IMAGE=${LOCAL_IMAGE:-fps-bench-cua-driver:local}
-  docker buildx build --platform "$PLATFORM" --build-arg "CUA_REF=$CUA_REF" -t "$IMAGE" --load .
+  docker buildx build --platform "$PLATFORM" --build-arg "CUA_REF=$CUA_REF" -t "$IMAGE" -f Dockerfile --load ..
 fi
 echo "$IMAGE"
