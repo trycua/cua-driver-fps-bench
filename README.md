@@ -7,12 +7,16 @@ acts only through `cua-driver call …`, and a pi-autoresearch loop patches the
 vendored cua-driver source on parallel CUA Fleet sandboxes to raise the score.
 
 Brief: `docs/BRIEF.md`. Design: `docs/plans/2026-08-29-fps-cua-driver-bench-design.md`.
-Results: `docs/results/2026-08-29-mouse-look-baseline-vs-exp4.md`. Side-by-side videos
-(left = cua-driver `main`, right = with the kept Exp 4 patch):
-[`results/videos/held-keys-side-by-side.mp4`](results/videos/held-keys-side-by-side.mp4)
-(held-key game, score 0.0 → 1.0) and
-[`results/videos/mouse-look-side-by-side.mp4`](results/videos/mouse-look-side-by-side.mp4)
-(earlier tap-step game, 0.0 → 0.8).
+Results: `docs/results/2026-08-29-mouse-look-baseline-vs-exp4.md`.
+
+Side by side — left: cua-driver `main`, right: with the kept Exp 4 patch (held-key game, score 0.0 → 1.0):
+
+https://github.com/trycua/cua-driver-fps-bench/blob/main/results/videos/held-keys-side-by-side.webm
+
+Earlier tap-step game (0.0 → 0.8):
+https://github.com/trycua/cua-driver-fps-bench/blob/main/results/videos/mouse-look-side-by-side.webm
+
+(MP4 versions sit next to them in `results/videos/`.)
 
 ## Setup
 

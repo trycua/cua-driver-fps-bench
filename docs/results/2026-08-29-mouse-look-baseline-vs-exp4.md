@@ -57,8 +57,11 @@ vendored source:
 | episode time | max_actions | ~42 s |
 
 Side by side (left `main`, right + Exp 4):
-[`held-keys-side-by-side.mp4`](../../results/videos/held-keys-side-by-side.mp4);
-tap-step era: [`mouse-look-side-by-side.mp4`](../../results/videos/mouse-look-side-by-side.mp4).
+https://github.com/trycua/cua-driver-fps-bench/blob/main/results/videos/held-keys-side-by-side.webm
+(MP4: [`held-keys-side-by-side.mp4`](../../results/videos/held-keys-side-by-side.mp4));
+tap-step era:
+https://github.com/trycua/cua-driver-fps-bench/blob/main/results/videos/mouse-look-side-by-side.webm
+(MP4: [`mouse-look-side-by-side.mp4`](../../results/videos/mouse-look-side-by-side.mp4)).
 
 ## Reproduce
 
