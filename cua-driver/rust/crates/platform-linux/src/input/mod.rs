@@ -2418,6 +2418,49 @@ pub fn send_move_xtest_desktop(x: i32, y: i32) -> Result<()> {
     Ok(())
 }
 
+/// Read the real X11 pointer's screen-absolute (root) position.
+/// Used to discover the browser's pointer-lock recenter anchor once, so a
+/// sequence of relative XTest warps can each target `anchor + dx` and yield
+/// `movementX = dx` without a per-move query that races the recenter.
+#[allow(dead_code)]
+pub fn query_pointer_screen_pos() -> Result<(i32, i32)> {
+    use x11rb::protocol::xproto::ConnectionExt as _;
+    let (conn, screen_num) = connect_x11_for_input()?;
+    let root = conn.setup().roots[screen_num].root;
+    let cur = conn.query_pointer(root)?.reply()?;
+    Ok((cur.root_x as i32, cur.root_y as i32))
+}
+
+/// Move the real X11 pointer by a *relative* (dx, dy) delta via XTest.
+///
+/// Under a browser pointer lock the window keeps recentering the OS pointer to
+/// its lock anchor every frame, so an ABSOLUTE XTest warp to (x, y) yields
+/// `movementX = x - anchor`, not `x - prev_agent_pos` — only a fraction of the
+/// intended delta reaches the page (`mouse_ratio` ~0.3 with absolute warps).
+/// Relative motion sidesteps this: query the pointer's current screen position
+/// (which is the browser's recenter anchor right after a mousemove), then warp
+/// to `(cur_x + dx, cur_y + dy)`. The browser observes a mousemove whose
+/// `movementX = (cur_x + dx) - cur_x = dx` — exactly the intended delta,
+/// independent of where the anchor sits. This is the XTest analogue of
+/// libXtst's `XTestFakeRelativeMotionEvent`.
+#[allow(dead_code)]
+pub fn send_move_xtest_relative(dx: i32, dy: i32) -> Result<()> {
+    use x11rb::protocol::xproto::ConnectionExt as _;
+    use x11rb::protocol::xtest::ConnectionExt as _;
+    let (conn, screen_num) = connect_x11_for_input()?;
+    let root = conn.setup().roots[screen_num].root;
+    // Query the real pointer position (the browser's recenter anchor under
+    // pointer lock) and apply the delta. Round-trip so the query reflects any
+    // recentering that followed the previous motion event.
+    let cur = conn.query_pointer(root)?.reply()?;
+    let nx = (cur.root_x as i32).wrapping_add(dx) as i16;
+    let ny = (cur.root_y as i32).wrapping_add(dy) as i16;
+    conn.xtest_fake_input(MOTION_NOTIFY_EVENT, 0, 0, root, nx, ny, 0)?;;
+    conn.flush()?;
+    let _ = conn.get_input_focus()?.reply();
+    Ok(())
+}
+
 /// Scroll the window under a screen-absolute point via real XTest wheel-button
 /// events. X11 buttons 4/5 are vertical up/down and 6/7 horizontal left/right.
 pub fn send_scroll_xtest_desktop(x: i32, y: i32, direction: &str, amount: usize) -> Result<()> {
