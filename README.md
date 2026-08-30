@@ -18,7 +18,8 @@ The right side turns at the corner and reaches the goal in ~40 s; the left walks
 Full-length, full-quality recordings:
 [held-keys-side-by-side.webm](https://github.com/trycua/cua-driver-fps-bench/blob/main/results/videos/held-keys-side-by-side.webm) ·
 [mouse-look-side-by-side.webm](https://github.com/trycua/cua-driver-fps-bench/blob/main/results/videos/mouse-look-side-by-side.webm)
-(MP4s alongside in `results/videos/`; GIFs above are 8 fps excerpts of the first 48 s / 60 s).
+(MP4s alongside in `results/videos/`; the GIF above is the full run at 6 fps — the right
+side freezes on its final frame once it reaches the goal while the left runs to completion).
 
 ## Setup
 
