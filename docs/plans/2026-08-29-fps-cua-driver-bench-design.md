@@ -26,8 +26,8 @@ Fleet sandboxes in parallel.
   long leg 3×16 along +X from the corner, glowing goal at its far end.
 * Controls: mouse look via three.js `PointerLockControls` (vendored r147; a
   no-lock fallback feeds `movementX/Y` into the same controls object), `W/A/S/D`
-  move (held-key velocity plus a 0.5-unit step per keydown so press-and-release
-  drivers still move), `Space` jump. Stepping off the platform resets to the
+  move only while held (6 u/s velocity; a press-and-release tap does not move,
+  so the driver must hold keys — `press_key` with `hold_ms`), `Space` jump. Stepping off the platform resets to the
   start and counts a fall.
 * State is exposed at `window.__state` (`x, z, yaw, reached, falls, keydowns,
   mousemoves, mouse_dx, locked, keys{}`) and `window.__progress()`;

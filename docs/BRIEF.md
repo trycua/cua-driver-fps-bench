@@ -14,13 +14,13 @@ Measure how reliably [cua-driver](https://github.com/trycua/cua/tree/main/libs/c
 
 `tasks/fps_lshape/` renders an L-shaped platform. The player starts at the end of the short leg; a glowing goal marks the end of the long leg. Falling off resets the player and counts a fall.
 
-Controls use prebuilt three.js libraries, vendored because the desktop is offline: the mouse turns the camera through `PointerLockControls`, `WASD` moves, and `Space` jumps.
+Controls use prebuilt three.js libraries, vendored because the desktop is offline: the mouse turns the camera through `PointerLockControls`, `WASD` moves only while held, and `Space` jumps.
 
 `evaluate()` returns `[reached, progress]`; the score is `reached`: did the player make the goal?
 
 ### 3. A minimal agent that acts only through cua-driver
 
-`fps_bench/agent.py` reads the game state directly but sends every action through `cua-driver call …` inside the environment: `move_cursor` to turn, `press_key` to walk. It re-plans after each action, so it recovers from dropped input. Each episode records whether the goal was reached, keydowns seen per press sent (`delivery_ratio`), and mouse pixels seen per pixel sent (`mouse_ratio`).
+`fps_bench/agent.py` reads the game state directly but sends every action through `cua-driver call …` inside the environment: `move_cursor` to turn, `press_key` with a `hold_ms` to walk (movement requires held keys). It re-plans after each action, so it recovers from dropped input. Each episode records whether the goal was reached, keydowns seen per press sent (`delivery_ratio`), and mouse pixels seen per pixel sent (`mouse_ratio`).
 
 ### 4. A Fleet image with the cua-driver source pre-cloned
 

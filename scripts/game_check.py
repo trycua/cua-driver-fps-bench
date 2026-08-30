@@ -1,7 +1,7 @@
 """Headless smoke test of the L-platform game (no desktop needed).
 
 Run: .venv/bin/python scripts/game_check.py
-Checks: real key events move the player, real mouse movement turns the camera,
+Checks: a held key moves the player (a tap barely does), real mouse movement turns the camera,
 the oracle route reaches the goal, walking off the edge resets.
 """
 
@@ -31,13 +31,20 @@ async def main() -> int:
         print("page errors:", errs)
         assert not errs, errs
 
-        # Real keyboard: two W taps => TAP_STEP each (0.5) toward -Z, plus hold-time movement.
-        for _ in range(2):
-            await pg.keyboard.press("w")
+        # Real keyboard: an instant tap must barely move (no per-keydown nudge).
+        await pg.keyboard.press("w")
+        await pg.wait_for_timeout(100)
+        s0 = await state(pg)
+        print("after 1 W tap:", s0)
+        assert s0["keydowns"] == 1 and 7.0 - s0["z"] < 0.3, s0
+        # Holding W for 500 ms => ~SPEED*0.5 = 3 units toward -Z.
+        await pg.keyboard.down("w")
+        await pg.wait_for_timeout(500)
+        await pg.keyboard.up("w")
         await pg.wait_for_timeout(100)
         s = await state(pg)
-        print("after 2 W taps:", s)
-        assert s["keydowns"] == 2 and s["z"] < 7.0 - 0.9, s
+        print("after 500ms W hold:", s)
+        assert s["keydowns"] >= 2 and 1.5 <= s0["z"] - s["z"] <= 4.5, s
 
         # Real mouse movement (no pointer lock in this context => fallback path): 200px right => ~-0.4 rad yaw.
         await pg.mouse.move(400, 300)

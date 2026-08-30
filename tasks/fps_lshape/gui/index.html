@@ -34,14 +34,14 @@
 // corner |#########################|  long leg (LONG_LEN x LEG_W)  goal
 //        +---------------------------> x
 //
-// Controls: mouse look (three.js PointerLockControls), WASD move, Space jump.
+// Controls: mouse look (three.js PointerLockControls), WASD move (only while
+// held: SPEED u/s applied per frame in tick), Space jump.
 // ---------------------------------------------------------------------------
 const LEG_W = 3, SHORT_LEN = 8, LONG_LEN = 16;
 const START = { x: LEG_W / 2, z: SHORT_LEN - 1.0 };
 const GOAL  = { x: LONG_LEN - 1.0, z: -LEG_W / 2 };
 const GOAL_R = 0.9;
 const EYE = 1.6, SPEED = 6.0, JUMP_V = 6.0, GRAVITY = 20.0;
-const TAP_STEP = 0.5;   // extra distance applied on each keydown so tap-only drivers still move
 
 const state = {
   x: START.x, y: 0, z: START.z, yaw: 0,   // yaw = camera rotation.y; 0 => facing -Z (PointerLockControls convention)
@@ -147,15 +147,12 @@ addEventListener('keydown', ev => {
   const k = ev.key.toLowerCase();
   state.keydowns++; state.keys[k] = (state.keys[k] || 0) + 1;
   const m = KEYMAP[k];
-  if (m) {
-    if (!held[m]) moveBy(m === 'w' ? TAP_STEP : m === 's' ? -TAP_STEP : 0, m === 'd' ? TAP_STEP : m === 'a' ? -TAP_STEP : 0);
-    held[m] = true; ev.preventDefault();
-  } else if (k === ' ' || k === 'space' || k === 'spacebar') { jump(); ev.preventDefault(); }
+  if (m) { held[m] = true; ev.preventDefault(); }  // movement happens only while held (see tick) else if (k === ' ' || k === 'space' || k === 'spacebar') { jump(); ev.preventDefault(); }
 });
 addEventListener('keyup', ev => { const m = KEYMAP[ev.key.toLowerCase()]; if (m) held[m] = false; });
 addEventListener('blur', () => { for (const k in held) held[k] = false; });
 
-// Programmatic hooks for the oracle / tests (same code paths as real input).
+// Programmatic hooks for the oracle / tests (not the OS input path): __press moves 1 unit per call.
 window.__press = (k) => { const m = KEYMAP[k.toLowerCase()]; if (m) moveBy(m === 'w' ? 1 : m === 's' ? -1 : 0, m === 'd' ? 1 : m === 'a' ? -1 : 0); else if (k === ' ') jump(); };
 window.__look = (deg) => { camera.rotation.y -= deg * Math.PI / 180; };
 window.__reset = reset;
@@ -180,7 +177,7 @@ function tick(now) {
   beacon.rotation.y += 0.02;
   hud.textContent = `x=${state.x.toFixed(2)} z=${state.z.toFixed(2)} yaw=${(state.yaw * 180 / Math.PI).toFixed(0)}° lock=${state.locked}\n` +
     `progress=${(progress(state.x, state.z) * 100).toFixed(0)}% reached=${state.reached} falls=${state.falls}\n` +
-    `keydowns=${state.keydowns} mousemoves=${state.mousemoves}  mouse=look  WASD=move  Space=jump`;
+    `keydowns=${state.keydowns} mousemoves=${state.mousemoves}  mouse=look  hold WASD=move  Space=jump`;
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }

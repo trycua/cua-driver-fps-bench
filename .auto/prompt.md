@@ -7,7 +7,8 @@ Make `cua-driver call press_key` reliably deliver key presses to a pywebview
 platform (`tasks/fps_lshape/gui/index.html`), and an agent (`fps_bench/agent.py`)
 that reads the game state but can only act through cua-driver: `move_cursor`
 (relative mouse motion turns the camera via three.js PointerLockControls, 0.002
-rad/px) and `press_key` "w" taps (each keydown moves 0.5 units). The first
+rad/px) and `press_key` "w" with `hold_ms` (movement requires held keys: the game
+moves 6 u/s only while a key is down, so a tap without a hold goes nowhere). The first
 action is a `click` on the canvas (focus + pointer-lock request). The episode
 succeeds when the goal is reached.
 
@@ -37,7 +38,9 @@ Useful diagnostics inside the sandbox (DISPLAY=:1):
 - `cua-driver/rust/crates/cua-driver-core/src/**` — driver core / tool dispatch,
   only where the Linux press_key path needs it.
 - `cua-driver/rust/crates/cua-driver/src/**` — CLI/tool plumbing for press_key
-  (e.g. resolving a window target when none is given).
+  (e.g. resolving a window target when none is given). Note: movement requires
+  held keys, so `press_key` must honour `hold_ms` (`{"key":"w","pid":..,"hold_ms":<0..5000>}`,
+  key down for that long, then up); the agent walks with 120..500 ms holds.
 
 ## Off Limits
 - `bench/`, `fps_bench/`, `tasks/` — the benchmark and the agent are the fixed yardstick.
