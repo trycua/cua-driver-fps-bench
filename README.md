@@ -66,7 +66,7 @@ image/build.sh        # buildx linux/amd64 → 296062593712.dkr.ecr.us-west-2.am
 
 Fleet's pool admission only allows a fixed set of image repositories, which is why
 the tag lands in `cua-gymdriver-dev`. Pools use `runtime = gvisor` (plain container).
-Current tag: `cua-driver-bench-20260830b-dbf0d3a4` (also runs a `cua-driver serve` daemon, which `cua-driver call` needs on this build) — the base image's `supervisord.conf` has no
+Current tag: `cua-driver-bench-20260830-hold` (vendored driver: press_key hold_ms + Exp 4 click patch) (also runs a `cua-driver serve` daemon, which `cua-driver call` needs on this build) — the base image's `supervisord.conf` has no
 `[include]`, so earlier tags never ran the boot-time build; this one registers it directly
 (build + install ≈ 60 s on a gVisor sandbox).
 
