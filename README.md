@@ -9,14 +9,19 @@ vendored cua-driver source on parallel CUA Fleet sandboxes to raise the score.
 Brief: `docs/BRIEF.md`. Design: `docs/plans/2026-08-29-fps-cua-driver-bench-design.md`.
 Results: `docs/results/2026-08-29-mouse-look-baseline-vs-exp4.md`.
 
-Side by side — left: cua-driver `main`, right: with the kept Exp 4 patch (held-key game, score 0.0 → 1.0):
+**Held-key game — left: cua-driver `main` (score 0.0), right: with the kept Exp 4 patch (score 1.0).**
+The right side turns at the corner and reaches the goal in ~40 s; the left walks into the corner and never turns.
 
-https://github.com/trycua/cua-driver-fps-bench/blob/main/results/videos/held-keys-side-by-side.webm
+![held-key game: main vs Exp 4](results/videos/held-keys-side-by-side.gif)
 
-Earlier tap-step game (0.0 → 0.8):
-https://github.com/trycua/cua-driver-fps-bench/blob/main/results/videos/mouse-look-side-by-side.webm
+**Earlier tap-step game (0.0 → 0.8):**
 
-(MP4 versions sit next to them in `results/videos/`.)
+![tap-step game: main vs Exp 4](results/videos/mouse-look-side-by-side.gif)
+
+Full-length, full-quality recordings:
+[held-keys-side-by-side.webm](https://github.com/trycua/cua-driver-fps-bench/blob/main/results/videos/held-keys-side-by-side.webm) ·
+[mouse-look-side-by-side.webm](https://github.com/trycua/cua-driver-fps-bench/blob/main/results/videos/mouse-look-side-by-side.webm)
+(MP4s alongside in `results/videos/`; GIFs above are 8 fps excerpts of the first 48 s / 60 s).
 
 ## Setup
 
