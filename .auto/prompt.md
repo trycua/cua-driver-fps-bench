@@ -77,6 +77,13 @@ BEFORE the WebKitGTK auto-escalation runs; `delivery_mode: foreground` delivers;
 target exactly this refusal. WebKitWebProcess/WebKitNetworkProcess ARE visible under
 /proc there, so detection is not the problem; the refusal ordering is.
 
+## Held-key baseline, 2026-08-30 (game no longer moves on taps; press_key hold_ms in tree)
+main @ 96104b0 on the fps-c VM, EPISODES=2: the agent walks the whole short leg in 3 held
+presses (progress 0.39, delivery_ratio 1.17 — X autorepeat adds keydowns), then stalls at
+the corner: 57 move_cursor calls, mouse_ratio 0.014, score 0.0. Walking is solved by
+hold_ms; turning (real pointer motion + pointer lock) is the open problem. The Exp 4 click
+patch is now folded into main's cua-driver (see results/videos/exp4-click-xtest.diff).
+
 ## What's Been Tried
 - 2026-08-29 baseline (stock cua-driver 0.4.2 on a Fleet Ubuntu 24.04 VM, XFCE on
   Xtigervnc :1, pywebview/WebKitGTK window): score 0.00, delivery_ratio 0.00 over
