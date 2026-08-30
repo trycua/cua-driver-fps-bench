@@ -38,9 +38,12 @@ Useful diagnostics inside the sandbox (DISPLAY=:1):
 - `cua-driver/rust/crates/cua-driver-core/src/**` — driver core / tool dispatch,
   only where the Linux press_key path needs it.
 - `cua-driver/rust/crates/cua-driver/src/**` — CLI/tool plumbing for press_key
-  (e.g. resolving a window target when none is given). Note: movement requires
-  held keys, so `press_key` must honour `hold_ms` (`{"key":"w","pid":..,"hold_ms":<0..5000>}`,
-  key down for that long, then up); the agent walks with 120..500 ms holds.
+  (e.g. resolving a window target when none is given).
+- Movement requires held keys: Linux `press_key` accepts optional `hold_ms`
+  (0..=5000, default 0; `{"key":"w","pid":..,"hold_ms":N}`) — the key stays down that
+  long between KeyPress and KeyRelease on the XTest and XSendEvent paths
+  (`send_key_xtest_held` / `send_key_held` / `send_key_at_held`); the agent walks
+  with 120..500 ms holds.
 
 ## Off Limits
 - `bench/`, `fps_bench/`, `tasks/` — the benchmark and the agent are the fixed yardstick.
