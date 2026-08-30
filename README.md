@@ -21,8 +21,8 @@ Fleet credentials come from the macOS Keychain entry `cua-sandbox-fleet-api`
 ## Task
 
 `tasks/fps_lshape/` — `main.py` + `gui/index.html` (three.js r147 + `PointerLockControls`,
-vendored). Controls: mouse look, `W/A/S/D` move (each keydown also moves 0.5 units so
-tap-only drivers work), `Space` jump. `evaluate()` → `[reached, progress]`.
+vendored). Controls: mouse look, `W/A/S/D` move only while held (6 u/s; a
+press-and-release tap goes nowhere), `Space` jump. `evaluate()` → `[reached, progress]`.
 
 ```bash
 .venv/bin/cb interact tasks/fps_lshape --oracle --no-wait      # oracle solves it via window.__press

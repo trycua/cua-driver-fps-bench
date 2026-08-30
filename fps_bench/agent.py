@@ -6,8 +6,8 @@ executed inside the environment, so the score isolates cua-driver's input path:
 
 * turning  -> ``move_cursor`` (relative mouse motion drives the three.js
   PointerLockControls camera; 0.002 rad per pixel)
-* walking  -> ``press_key`` "w" taps (each keydown moves TAP_STEP=0.5 units,
-  plus whatever the key is held for)
+* walking  -> ``press_key`` "w" with ``hold_ms`` (the game moves only while a
+  key is held, SPEED=6 u/s; short bursts sized from the remaining distance)
 * the first action is a ``click`` on the game canvas so the page has focus and
   can request pointer lock.
 
@@ -31,7 +31,8 @@ from cua_bench.agents.base import AgentResult, BaseAgent, FailureMode
 START = (1.5, 7.0)
 GOAL = (15.0, -1.5)
 RAD_PER_PX = 0.002          # PointerLockControls sensitivity
-TAP_STEP = 0.5
+SPEED = 6.0                 # game walk speed, units/s while a key is held
+HOLD_MIN_MS, HOLD_MAX_MS = 120, 500
 YAW_TOL = math.radians(6)   # accept heading within ±6°
 DRIVER_BIN = "cua-driver"
 DRIVER_SESSION = "fps-bench"
@@ -47,6 +48,7 @@ class EpisodeRecord:
     reached: bool = False
     progress: float = 0.0
     presses: int = 0            # press_key calls
+    hold_ms_total: int = 0      # sum of hold_ms over press_key calls
     keydowns: int = 0           # keydowns the page saw
     mouse_moves: int = 0        # move_cursor calls
     mousemoves_seen: int = 0    # mousemove events the page saw
@@ -63,6 +65,10 @@ class EpisodeRecord:
         return self.keydowns / self.presses if self.presses else 0.0
 
     @property
+    def mean_hold_ms(self) -> float:
+        return self.hold_ms_total / self.presses if self.presses else 0.0
+
+    @property
     def mouse_ratio(self) -> float:
         return abs(self.mouse_px_seen) / abs(self.mouse_px_sent) if self.mouse_px_sent else 0.0
 
@@ -70,6 +76,7 @@ class EpisodeRecord:
         d = asdict(self)
         d["delivery_ratio"] = self.delivery_ratio
         d["mouse_ratio"] = self.mouse_ratio
+        d["mean_hold_ms"] = self.mean_hold_ms
         return d
 
 
@@ -83,7 +90,7 @@ def forward_of(yaw: float) -> tuple[float, float]:
 
 
 def plan(state: dict[str, Any]) -> tuple[str, float] | None:
-    """Next action for the state: ("turn", dyaw_rad) | ("walk", 0) | None when done.
+    """Next action for the state: ("turn", dyaw_rad) | ("walk", remaining_units) | None when done.
 
     Route: face -Z (yaw 0) and walk to the long leg's z band, then face +X
     (yaw -pi/2) and walk to the goal.
@@ -96,9 +103,14 @@ def plan(state: dict[str, Any]) -> tuple[str, float] | None:
     dyaw = wrap(target_yaw - yaw)
     if abs(dyaw) > YAW_TOL:
         return ("turn", dyaw)
-    if not on_long_leg or x < GOAL[0] - 0.5:
-        return ("walk", 0.0)
-    return ("walk", 0.0)  # inside goal radius but not flagged yet; nudge
+    if not on_long_leg:
+        return ("walk", max(0.0, z - (-1.5)))   # to the middle of the long leg's z band
+    return ("walk", max(0.0, GOAL[0] - x))     # may be a tiny nudge inside the goal radius
+
+
+def hold_ms_for(remaining: float) -> int:
+    """Key hold for one walk burst: at most 3 units per burst, clamped to 120..500 ms."""
+    return max(HOLD_MIN_MS, min(HOLD_MAX_MS, int(1000 * min(remaining, 3.0) / SPEED)))
 
 
 def driver_call(tool: str, args: dict[str, Any], session_id: str = DRIVER_SESSION) -> str:
@@ -192,8 +204,11 @@ class CuaDriverAgent(BaseAgent):
         self._cursor = (nx, cy)
         return info, float(moved)
 
-    async def _walk(self, session: GameSession, target: dict[str, Any]) -> dict[str, Any]:
-        return await self._call(session, "press_key", {"key": "w", **self._target_args(target)})
+    async def _walk(self, session: GameSession, remaining: float, target: dict[str, Any]) -> dict[str, Any]:
+        hold = hold_ms_for(remaining)
+        info = await self._call(session, "press_key", {"key": "w", "hold_ms": hold, **self._target_args(target)})
+        info["hold_ms"] = hold
+        return info
 
     # --- episode ----------------------------------------------------------------
     async def run_episode(self, session: GameSession, pid: int) -> EpisodeRecord:
@@ -212,15 +227,16 @@ class CuaDriverAgent(BaseAgent):
                 step = plan(state)
                 if step is None:
                     break
-                kind, dyaw = step
+                kind, arg = step
                 before_kd, before_mm, before_px = int(state.get("keydowns", 0)), int(state.get("mousemoves", 0)), float(state.get("mouse_dx", 0))
                 if kind == "turn":
-                    info, px = await self._turn(session, dyaw, target)
+                    info, px = await self._turn(session, arg, target)
                     rec.mouse_moves += 1
                     rec.mouse_px_sent += px
                 else:
-                    info = await self._walk(session, target)
+                    info = await self._walk(session, arg, target)
                     rec.presses += 1
+                    rec.hold_ms_total += int(info["hold_ms"])
                 actions += 1
                 if info["rc"] not in (0, None):
                     rec.driver_errors += 1
@@ -279,6 +295,7 @@ def summarize(records: list[EpisodeRecord]) -> dict[str, Any]:
         "delivery_ratio": sum(r.delivery_ratio for r in records) / n,
         "mouse_ratio": sum(r.mouse_ratio for r in records) / n,
         "mean_presses": sum(r.presses for r in records) / n,
+        "mean_hold_ms": sum(r.mean_hold_ms for r in records) / n,
         "mean_mouse_moves": sum(r.mouse_moves for r in records) / n,
         "mean_seconds": sum(r.seconds for r in records) / n,
         "falls": sum(r.falls for r in records),
